@@ -1,0 +1,17 @@
+{
+  "openapi": "3.0.0",
+  "info": { "title": "Derma Ease API", "version": "1.0.0" },
+  "paths": {
+    "/api/auth/login": { "post": { "summary": "Login" } },
+    "/api/auth/register": { "post": { "summary": "Register" } },
+    "/api/users/doctors": { "get": { "summary": "List doctors" } },
+    "/api/appointments": { "get": { "summary": "List my appointments" }, "post": { "summary": "Create appointment" } },
+    "/api/chat/history": { "get": { "summary": "Get chat history" } },
+    "/api/chat/send": { "post": { "summary": "Send message" } },
+    "/api/reviews/{doctorId}": { "get": { "summary": "List doctor reviews" } },
+    "/api/reviews": { "post": { "summary": "Create/Update review" } },
+    "/api/prescriptions": { "get": { "summary": "List prescriptions" }, "post": { "summary": "Create prescription" } }
+  }
+}
+
+
