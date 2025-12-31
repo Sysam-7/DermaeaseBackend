@@ -2,10 +2,10 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
 
-import User from './models/user.model.js';
-import Appointment from './models/appointment.model.js';
-import Review from './models/review.model.js';
-import ChatMessage from './models/chat-message.model.js';
+import User from './src/models/user.model.js';
+import Appointment from './src/models/appointment.model.js';
+import Review from './src/models/review.model.js';
+import ChatMessage from './src/models/chat-message.model.js';
 
 dotenv.config();
 

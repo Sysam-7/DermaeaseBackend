@@ -9,8 +9,7 @@ import session from "express-session";
 import passport from "./config/passport.js";
 import cookieParser from "cookie-parser";
 
-import authRoutes from "./routes/auth.js";
-import localAuthRoutes from "./routes/auth.routes.js";
+import authRoutes from "./routes/auth.routes.js";
 import appRoutes from "./app.js"; // if app.js exports an express app or router
 
 const PORT = process.env.PORT || 5000;
@@ -50,7 +49,7 @@ async function start() {
 
     // Mount your routes (ensure these files exist and export a router)
     app.use("/auth", authRoutes);
-    app.use("/auth", localAuthRoutes);
+    app.use("/auth", authRoutes);
 
     // If you have an app.js that exports routers or middleware, attach it:
     // app.use(appRoutes);

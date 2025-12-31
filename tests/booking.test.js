@@ -1,8 +1,8 @@
 import request from 'supertest';
 import mongoose from 'mongoose';
-import app from '../app.js';
-import User from '../models/User.js';
-import Appointment from '../models/Appointment.js';
+import app from '../src/app.js';
+import User from '../src/models/user.model.js';
+import Appointment from '../src/models/appointment.model.js';
 
 describe('Booking', () => {
   let doctor, patient, token;

@@ -1,7 +1,7 @@
 import request from 'supertest';
 import mongoose from 'mongoose';
-import app from '../app.js';
-import User from '../models/User.js';
+import app from '../src/app.js';
+import User from '../src/models/user.model.js';
 
 describe('Auth', () => {
   beforeAll(async () => {

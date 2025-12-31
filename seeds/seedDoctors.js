@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 dotenv.config();
 
-import User from '../models/user.model.js';
+import User from '../src/models/user.model.js';
 import bcrypt from 'bcryptjs';
 
 const doctors = [

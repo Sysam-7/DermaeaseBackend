@@ -1,10 +1,19 @@
-import express from "express";
-import passport from "passport";
-import jwt from "jsonwebtoken";
+import { Router } from 'express';
+import passport from 'passport';
+import jwt from 'jsonwebtoken';
+import { login, register, logout, verifyToken, forgotPassword, resetPassword } from '../controllers/auth-controller.js';
+import { authenticate } from '../middleware/auth-middleware.js';
 
-const router = express.Router();
+const router = Router();
 
-// Start Google OAuth flow - accept optional ?role=patient|doctor and pass it as state
+router.post('/register', register);
+router.post('/login', login);
+router.post('/forgot-password', forgotPassword);
+router.post('/reset-password', resetPassword);
+router.post('/logout', authenticate, logout);
+router.get('/verify-token', authenticate, verifyToken);
+
+// Google OAuth start
 router.get("/google", (req, res, next) => {
   const role = req.query.role;
   const state = role ? JSON.stringify({ role }) : undefined;
@@ -29,14 +38,12 @@ router.get(
         return res.redirect(`${process.env.FRONTEND_URL}/login?error=oauth_failed`);
       }
 
-      // Create JWT (optional - you can also rely on httpOnly cookie)
       const token = jwt.sign(
         { userId: user._id.toString(), role: user.role, email: user.email },
         process.env.JWT_SECRET,
         { expiresIn: "24h" }
       );
 
-      // Set httpOnly cookie with token
       res.cookie("token", token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
@@ -44,7 +51,6 @@ router.get(
         maxAge: 24 * 60 * 60 * 1000,
       });
 
-      // Try to read role from state (Google will echo state back)
       let role;
       try {
         const state = req.query?.state;
@@ -56,7 +62,6 @@ router.get(
         // ignore parse errors
       }
 
-      // fallback to user.role or 'patient'
       role = role || user.role || "patient";
 
       const frontend = (process.env.FRONTEND_URL || "http://localhost:3000").replace(/\/$/, "");
@@ -73,3 +78,5 @@ router.get(
 );
 
 export default router;
+
+

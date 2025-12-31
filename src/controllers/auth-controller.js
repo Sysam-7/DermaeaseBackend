@@ -11,14 +11,36 @@ export const register = async (req, res) => {
   try {
     const { name, username, email, password, role } = req.body;
 
-    if (!name || !email || !password) 
-      return res.status(400).json({ message: 'Name, email, password required' });
+    // Validate required fields
+    if (!name || !email || !password) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Name, email, and password are required' 
+      });
+    }
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Invalid email format' 
+      });
+    }
+
+    // Check if user already exists
     const exists = await User.findOne({ email });
-    if (exists) return res.status(400).json({ message: 'Email already registered' });
+    if (exists) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Email already registered' 
+      });
+    }
 
+    // Hash password
     const hashed = await bcrypt.hash(password, 10);
 
+    // Create user
     const user = new User({
       name,
       email,
@@ -29,21 +51,34 @@ export const register = async (req, res) => {
 
     await user.save();
 
+    // Generate JWT token
+    if (!process.env.JWT_SECRET) {
+      console.error('⚠️  JWT_SECRET not set in environment variables');
+      return res.status(500).json({ 
+        success: false,
+        message: 'Server configuration error' 
+      });
+    }
+
     let token = null;
     try {
       token = jwt.sign(
-        { userId: user._id, role: user.role },
-        process.env.JWT_SECRET || 'secret',
+        { userId: user._id.toString(), role: user.role },
+        process.env.JWT_SECRET,
         { expiresIn: '24h' }
       );
     } catch (jwtErr) {
       console.error('JWT generation failed:', jwtErr);
+      return res.status(500).json({ 
+        success: false,
+        message: 'Failed to generate authentication token' 
+      });
     }
 
-    // Always return success, even if JWT failed
     return res.status(201).json({
-      message: 'Registered',
-      token, // null if JWT failed
+      success: true,
+      message: 'Registration successful',
+      token,
       role: user.role,
       name: user.name
     });
@@ -51,16 +86,26 @@ export const register = async (req, res) => {
   } catch (err) {
     console.error('register error:', err);
 
-    // If user was saved, still return success
-    if (err.name === 'MongoError' || err.name === 'ValidationError') {
-      return res.status(201).json({
-        message: 'Registered, but token may not be generated',
-        role: req.body.role || 'patient',
-        name: req.body.name
+    // Handle duplicate email error
+    if (err.code === 11000 || err.name === 'MongoServerError') {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Email already registered' 
       });
     }
 
-    return res.status(500).json({ message: 'Server error' });
+    // Handle validation errors
+    if (err.name === 'ValidationError') {
+      return res.status(400).json({ 
+        success: false,
+        message: err.message || 'Validation error' 
+      });
+    }
+
+    return res.status(500).json({ 
+      success: false,
+      message: 'Server error during registration' 
+    });
   }
 };
 
@@ -69,20 +114,65 @@ export const register = async (req, res) => {
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ message: 'Email and password required' });
+    
+    if (!email || !password) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Email and password are required' 
+      });
+    }
+
+    if (!process.env.JWT_SECRET) {
+      console.error('⚠️  JWT_SECRET not set in environment variables');
+      return res.status(500).json({ 
+        success: false,
+        message: 'Server configuration error' 
+      });
+    }
 
     const user = await User.findOne({ email });
-    if (!user) return res.status(401).json({ message: 'Invalid credentials' });
+    if (!user) {
+      return res.status(401).json({ 
+        success: false,
+        message: 'Invalid email or password' 
+      });
+    }
+
+    // Check if user has a password (OAuth users might not)
+    if (!user.password) {
+      return res.status(401).json({ 
+        success: false,
+        message: 'This account was created with Google. Please sign in with Google.' 
+      });
+    }
 
     const ok = await bcrypt.compare(password, user.password);
-    if (!ok) return res.status(401).json({ message: 'Invalid credentials' });
+    if (!ok) {
+      return res.status(401).json({ 
+        success: false,
+        message: 'Invalid email or password' 
+      });
+    }
 
-    const token = jwt.sign({ userId: user._id, role: user.role }, process.env.JWT_SECRET || 'secret', { expiresIn: '24h' });
+    const token = jwt.sign(
+      { userId: user._id.toString(), role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
 
-    res.json({ message: 'Logged in', token, role: user.role, name: user.name });
+    return res.json({ 
+      success: true,
+      message: 'Login successful', 
+      token, 
+      role: user.role, 
+      name: user.name 
+    });
   } catch (err) {
     console.error('login error:', err);
-    res.status(500).json({ message: 'Server error' });
+    return res.status(500).json({ 
+      success: false,
+      message: 'Server error during login' 
+    });
   }
 };
 
@@ -93,15 +183,34 @@ export const logout = async (req, res) => {
 
 export const verifyToken = async (req, res) => {
   try {
-    // expects authenticate middleware to set req.userId
-    const id = req.userId || (req.user && req.user._id);
-    if (!id) return res.status(401).json({ message: 'Not authenticated' });
+    // authenticate middleware sets req.user
+    const id = req.user?._id || req.user?.id;
+    if (!id) {
+      return res.status(401).json({ 
+        success: false,
+        message: 'Not authenticated' 
+      });
+    }
+    
     const user = await User.findById(id).select('-password');
-    if (!user) return res.status(401).json({ message: 'User not found' });
-    res.json({ message: 'Token valid', data: { user } });
+    if (!user) {
+      return res.status(401).json({ 
+        success: false,
+        message: 'User not found' 
+      });
+    }
+    
+    return res.json({ 
+      success: true,
+      message: 'Token valid', 
+      data: { user } 
+    });
   } catch (err) {
     console.error('verifyToken error:', err);
-    res.status(500).json({ message: 'Server error' });
+    return res.status(500).json({ 
+      success: false,
+      message: 'Server error' 
+    });
   }
 };
 
