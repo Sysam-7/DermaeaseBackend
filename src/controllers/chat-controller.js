@@ -1,10 +1,66 @@
 import ChatMessage from '../models/chat-message.model.js';
 import User from '../models/user.model.js';
+import { sendInApp } from './notification-controller.js';
+import { getIO } from '../services/socket.service.js';
 
 export async function sendMessage(req, res) {
   const { to, message } = req.body;
-  const userId = req.user._id;
+  const userId = req.user.id;
+  const sender = await User.findById(userId).select('name role');
+  
+  // Create the message
   const msg = await ChatMessage.create({ senderId: userId, receiverId: to, message });
+  
+  // Get receiver info for notification
+  const receiver = await User.findById(to).select('name role');
+  
+  // Send notification to receiver
+  try {
+    const senderName = sender?.name || 'Someone';
+    const senderRole = sender?.role || 'user';
+    
+    // Determine notification message based on sender role
+    let notificationMessage;
+    if (senderRole === 'doctor') {
+      notificationMessage = `New unread message from Dr. ${senderName}`;
+    } else if (senderRole === 'patient') {
+      notificationMessage = `New unread message from ${senderName}`;
+    } else {
+      notificationMessage = `New unread message from ${senderName}`;
+    }
+    
+    await sendInApp(
+      to,
+      'chat_message',
+      notificationMessage,
+      null, // No appointmentId for chat messages
+      { 
+        senderId: userId.toString(),
+        senderName: senderName,
+        senderRole: senderRole,
+        message: message.substring(0, 100), // First 100 chars as preview
+        chatMessageId: msg._id.toString()
+      }
+    );
+    
+    // Emit real-time notification via socket
+    try {
+      const io = getIO();
+      if (io) {
+        io.to(String(to)).emit('new-chat-message', {
+          senderId: userId.toString(),
+          senderName: senderName,
+          message: message.substring(0, 100),
+          timestamp: msg.timestamp || new Date()
+        });
+      }
+    } catch (socketErr) {
+      console.error('Socket emit error:', socketErr);
+    }
+  } catch (notifErr) {
+    console.error('Notification error:', notifErr);
+  }
+  
   res.json({ success: true, message: 'Message sent', data: msg });
 }
 
@@ -12,7 +68,7 @@ export async function getHistory(req, res) {
   const { withUserId, page = 1, limit = 20 } = req.query;
   const p = Number(page);
   const l = Number(limit);
-  const userId = req.user._id;
+  const userId = req.user.id;
   const filter = {
     $or: [
       { senderId: userId, receiverId: withUserId },
@@ -29,7 +85,7 @@ export async function getHistory(req, res) {
 // Get conversations list for patients (list of doctors they can chat with)
 export async function getPatientConversations(req, res) {
   try {
-    const userId = req.user._id;
+    const userId = req.user.id;
     const userRole = req.user.role;
 
     if (userRole !== 'patient') {
@@ -87,7 +143,7 @@ export async function getPatientConversations(req, res) {
 // Get conversations list for doctors (list of patients who messaged them)
 export async function getDoctorConversations(req, res) {
   try {
-    const doctorId = req.user._id;
+    const doctorId = req.user.id;
     const userRole = req.user.role;
 
     if (userRole !== 'doctor') {

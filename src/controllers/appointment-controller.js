@@ -187,10 +187,23 @@ export const bookAppointment = async (req, res) => {
     await appointment.populate('patientId', 'name email');
     await appointment.populate('doctorId', 'name specialty');
 
-    // Send notifications
+    // Send notifications with appointment details
     try {
-      await sendInApp(doctorId, 'appointment', 'New appointment request');
-      await sendInApp(patientId, 'appointment', 'Appointment requested');
+      const patientName = appointment.patientId?.name || appointment.patientUsername || 'A patient';
+      await sendInApp(
+        doctorId, 
+        'appointment_request', 
+        `${patientName} sent you an appointment request for ${new Date(appointment.date).toLocaleDateString()} at ${appointment.time}`,
+        appointment._id,
+        { patientName, date: appointment.date, time: appointment.time, status: 'pending' }
+      );
+      await sendInApp(
+        patientId, 
+        'appointment_requested', 
+        `Your appointment request has been sent to Dr. ${appointment.doctorId?.name || 'Doctor'}`,
+        appointment._id,
+        { doctorName: appointment.doctorId?.name, date: appointment.date, time: appointment.time, status: 'pending' }
+      );
     } catch (notifErr) {
       console.error('Notification error:', notifErr);
     }
@@ -394,10 +407,41 @@ export const updateAppointmentStatus = async (req, res) => {
     await appointment.populate('patientId', 'name email');
     await appointment.populate('doctorId', 'name specialty');
 
-    // Send notifications
+    // Send notifications with appointment details
     try {
-      await sendInApp(appointment.doctorId, 'appointment', `Appointment ${status}`);
-      await sendInApp(appointment.patientId, 'appointment', `Appointment ${status}`);
+      const patientName = appointment.patientId?.name || 'Patient';
+      const doctorName = appointment.doctorId?.name || 'Doctor';
+      const appointmentDate = appointment.date ? new Date(appointment.date).toLocaleDateString() : 'N/A';
+      const appointmentTime = appointment.time || 'N/A';
+      
+      if (status === 'confirmed') {
+        await sendInApp(
+          appointment.patientId, 
+          'appointment_confirmed', 
+          `Dr. ${doctorName} has confirmed your appointment for ${appointmentDate} at ${appointmentTime}`,
+          appointment._id,
+          { doctorName, date: appointment.date, time: appointment.time, status: 'confirmed' }
+        );
+      } else if (status === 'cancelled') {
+        // Only notify patient when doctor cancels
+        if (userRole === 'doctor') {
+          await sendInApp(
+            appointment.patientId, 
+            'appointment_cancelled', 
+            `Dr. ${doctorName} has cancelled your appointment for ${appointmentDate} at ${appointmentTime}`,
+            appointment._id,
+            { doctorName, date: appointment.date, time: appointment.time, status: 'cancelled' }
+          );
+        }
+      } else if (status === 'completed') {
+        await sendInApp(
+          appointment.patientId, 
+          'appointment_completed', 
+          `Your appointment with Dr. ${doctorName} on ${appointmentDate} has been marked as completed`,
+          appointment._id,
+          { doctorName, date: appointment.date, time: appointment.time, status: 'completed' }
+        );
+      }
     } catch (notifErr) {
       console.error('Notification error:', notifErr);
     }
