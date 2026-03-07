@@ -94,6 +94,42 @@ export const createOrUpdateReview = async (req, res) => {
 };
 
 /**
+ * GET /api/reviews/me/doctor
+ * Get all reviews for the currently logged-in doctor
+ */
+export const getMyDoctorReviews = async (req, res) => {
+  try {
+    const doctorId = req.user.id;
+    
+    // Verify user is a doctor
+    if (req.user.role !== 'doctor') {
+      return res.status(403).json({ success: false, message: 'Only doctors can access this endpoint' });
+    }
+
+    const reviews = await Review.find({ doctorId })
+      .populate('patientId', 'name email')
+      .populate('doctorId', 'name specialty')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Calculate average rating
+    const avgRating = reviews.length > 0
+      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+      : 0;
+
+    return res.json({
+      success: true,
+      data: reviews,
+      averageRating: Math.round(avgRating * 10) / 10,
+      totalReviews: reviews.length
+    });
+  } catch (err) {
+    console.error('getMyDoctorReviews error:', err);
+    return res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
+};
+
+/**
  * DELETE /api/reviews/:id
  * Delete a review (admin only)
  */

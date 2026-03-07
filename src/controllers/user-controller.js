@@ -15,6 +15,51 @@ export async function listDoctors(req, res) {
   res.json({ success: true, message: 'Doctors', data: doctors });
 }
 
+/**
+ * GET /api/users/patients
+ * List all patients (for doctors)
+ */
+export async function listPatients(req, res) {
+  try {
+    // Only doctors can access this endpoint
+    if (req.user.role !== 'doctor') {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Access denied. Only doctors can view patient list.' 
+      });
+    }
+
+    const { q } = req.query;
+    const filter = { role: 'patient' };
+    
+    // Search by name or email if query provided
+    if (q) {
+      const regex = new RegExp(q, 'i');
+      filter.$or = [
+        { name: regex },
+        { email: regex }
+      ];
+    }
+
+    const patients = await User.find(filter)
+      .select('name email profilePic')
+      .sort({ name: 1 })
+      .lean();
+
+    return res.json({ 
+      success: true, 
+      message: 'Patients list',
+      data: patients 
+    });
+  } catch (err) {
+    console.error('listPatients error:', err);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Server error' 
+    });
+  }
+}
+
 export async function approveDoctor(req, res) {
   const { id } = req.params;
   const user = await User.findById(id);
