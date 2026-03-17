@@ -36,4 +36,14 @@ server.listen(PORT, () => {
   } else {
     console.log(`✅ Google OAuth configured`);
   }
+  
+  // Check SMTP configuration
+  const smtpRequired = ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS'];
+  const smtpMissing = smtpRequired.filter(key => !process.env[key]);
+  if (smtpMissing.length > 0) {
+    console.warn(`⚠️  SMTP not configured. Missing: ${smtpMissing.join(', ')}`);
+    console.warn(`⚠️  Emails will be logged to console instead of being sent.`);
+  } else {
+    console.log(`✅ SMTP configured (Host: ${process.env.SMTP_HOST}, Port: ${process.env.SMTP_PORT || 587})`);
+  }
 });

@@ -2,6 +2,7 @@
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import User from "../models/user.model.js";
+import { sendGoogleOTP } from "../controllers/auth-controller.js";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -30,36 +31,45 @@ passport.use(
           return done(new Error('Invalid Google profile data'), null);
         }
 
+        const email = profile.emails[0].value;
+        const googleId = profile.id;
+        const name = profile.displayName || 'User';
+
+        console.log(`🔍 Google OAuth - Checking user: ${email}, googleId: ${googleId}`);
+
         // Try to find user by googleId first
-        let user = await User.findOne({ googleId: profile.id });
+        let user = await User.findOne({ googleId });
 
         // If not found, try to find by email and link the account
         if (!user) {
-          user = await User.findOne({ email: profile.emails[0].value });
+          console.log(`🔍 User not found by googleId, checking by email: ${email}`);
+          user = await User.findOne({ email });
           if (user) {
-            // Link Google account to existing user
-            user.googleId = profile.id;
-            if (!user.name && profile.displayName) user.name = profile.displayName;
+            // Link Google account to existing user (existing user, no OTP needed)
+            console.log(`✅ Existing user found by email, linking Google account`);
+            user.googleId = googleId;
+            if (!user.name && name) user.name = name;
             await user.save();
+            return done(null, user);
           } else {
-            // Create new user
-          user = await User.create({
-            googleId: profile.id,
-              name: profile.displayName || 'User',
-            email: profile.emails[0].value,
-            role: "patient",
-              password: undefined, // No password for OAuth users
+            // NEW USER - Send OTP instead of creating user directly
+            console.log(`🆕 NEW USER detected: ${email} - will require OTP verification`);
+            return done(null, {
+              isNewUser: true,
+              email,
+              googleId,
+              name,
+              role: "patient"
             });
           }
         } else {
-          // Update user info if needed
+          // Existing user - Update user info if needed
           if (profile.displayName && !user.name) {
             user.name = profile.displayName;
             await user.save();
           }
+          return done(null, user);
         }
-
-        return done(null, user);
       } catch (error) {
         console.error('Passport Google Strategy error:', error);
         return done(error, null);
@@ -69,13 +79,29 @@ passport.use(
 );
 
 passport.serializeUser((user, done) => {
-  done(null, user.id);
+  // Handle special new user object
+  if (user && user.isNewUser) {
+    // Store the entire object for new users
+    done(null, JSON.stringify(user));
+  } else if (user && user.id) {
+    // Normal user serialization
+    done(null, user.id);
+  } else {
+    done(null, null);
+  }
 });
 
 passport.deserializeUser(async (id, done) => {
   try {
-    const user = await User.findById(id);
-    done(null, user);
+    // Check if it's a JSON string (new user object)
+    if (typeof id === 'string' && id.startsWith('{')) {
+      const userObj = JSON.parse(id);
+      done(null, userObj);
+    } else {
+      // Normal user deserialization
+      const user = await User.findById(id);
+      done(null, user);
+    }
   } catch (err) {
     done(err, null);
   }

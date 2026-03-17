@@ -86,7 +86,11 @@ export async function listPrescriptions(req, res) {
   const userId = req.user.id;
   const role = req.user.role;
   const filter = role === 'doctor' ? { doctorId: userId } : role === 'patient' ? { patientId: userId } : {};
-  const items = await Prescription.find(filter).sort({ createdAt: -1 });
+  const items = await Prescription.find(filter)
+    .sort({ createdAt: -1 })
+    .populate('doctorId', 'name specialty')
+    .populate('patientId', 'name email')
+    .lean();
   res.json({ success: true, message: 'Prescriptions', data: items });
 }
 
