@@ -15,6 +15,7 @@ import notificationsRoutes from './routes/notifications.routes.js';
 import chatRoutes from './routes/chat.routes.js';
 import prescriptionsRoutes from './routes/prescriptions.routes.js';
 import reviewsRoutes from './routes/reviews.routes.js';
+import paymentsRoutes from './routes/payments.routes.js';
 
 const app = express();
 
@@ -81,6 +82,7 @@ app.use("/api/notifications", notificationsRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/prescriptions", prescriptionsRoutes);
 app.use("/api/reviews", reviewsRoutes);
+app.use("/api/payments", paymentsRoutes);
 
 // Legacy OAuth routes (without /api prefix) for backward compatibility
 // This handles cases where Google Console is configured with /auth/google/callback

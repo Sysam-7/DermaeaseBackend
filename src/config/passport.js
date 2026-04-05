@@ -12,9 +12,30 @@ if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
   console.warn('⚠️  Google OAuth not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env');
 }
 
-// Default callback URL if not set
-const callbackURL = process.env.GOOGLE_CALLBACK_URL || 
-  `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/auth/google/callback`;
+/**
+ * Must match EXACTLY one "Authorized redirect URI" in Google Cloud Console.
+ * Correct path for this app: .../api/auth/google/callback (routes mount under /api/auth)
+ */
+function resolveGoogleCallbackURL() {
+  const raw = process.env.GOOGLE_CALLBACK_URL?.trim();
+  if (raw) {
+    // Common mistake: /auth/google/callback without /api — fix automatically
+    if (/\/auth\/google\/callback$/.test(raw) && !/\/api\/auth\/google\/callback$/.test(raw)) {
+      const fixed = raw.replace(/\/auth\/google\/callback$/, '/api/auth/google/callback');
+      console.warn(`⚠️  GOOGLE_CALLBACK_URL had wrong path; using: ${fixed}`);
+      return fixed;
+    }
+    return raw;
+  }
+  const port = process.env.PORT || 5000;
+  const base = (process.env.BACKEND_URL || `http://localhost:${port}`).replace(/\/$/, '');
+  return `${base}/api/auth/google/callback`;
+}
+
+const callbackURL = resolveGoogleCallbackURL();
+
+/** Exact string that must appear under "Authorized redirect URIs" for this Web client in Google Cloud Console */
+export const GOOGLE_OAUTH_CALLBACK_URL = callbackURL;
 
 console.log(`🔐 Google OAuth callback URL: ${callbackURL}`);
 
