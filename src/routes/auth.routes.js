@@ -172,6 +172,13 @@ router.get(
         console.error('❌ User object missing _id, cannot create token');
         return res.redirect(`${process.env.FRONTEND_URL}/login?error=invalid_user`);
       }
+
+      if (user.accessStatus === 'restricted' || user.accessStatus === 'deleted') {
+        const frontend = (process.env.FRONTEND_URL || "http://localhost:3000").replace(/\/$/, "");
+        const statusLabel = user.accessStatus === 'deleted' ? 'blocked' : 'restricted';
+        const reason = encodeURIComponent(user.accessReason || 'No reason provided by admin.');
+        return res.redirect(`${frontend}/login?error=access_denied&message=${encodeURIComponent(`You have been ${statusLabel} by admin.`)}&reason=${reason}`);
+      }
       
       console.log('✅ Existing user - proceeding with login:', user.email);
       const token = jwt.sign(

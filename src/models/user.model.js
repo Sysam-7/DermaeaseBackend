@@ -23,6 +23,13 @@ const userSchema = new Schema({
 
   resetPasswordToken: { type: String },
   resetPasswordExpires: { type: Date },
+  accessStatus: {
+    type: String,
+    enum: ['active', 'restricted', 'deleted'],
+    default: 'active',
+  },
+  accessReason: { type: String, default: '' },
+  accessUpdatedAt: { type: Date },
 }, { timestamps: true });
 
 export default model('User', userSchema);
