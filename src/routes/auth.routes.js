@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import passport from 'passport';
 import jwt from 'jsonwebtoken';
+import { GOOGLE_OAUTH_CALLBACK_URL } from '../config/passport.js';
 import { login, register, logout, verifyToken, forgotPassword, resetPassword, verifyGoogleOTP, resendGoogleOTP, sendGoogleOTP } from '../controllers/auth-controller.js';
 import { authenticate } from '../middleware/auth-middleware.js';
 
@@ -67,6 +68,20 @@ router.get('/get-otp/:email', async (req, res) => {
     console.error('Error retrieving OTP:', err);
     return res.status(500).json({ success: false, message: err.message });
   }
+});
+
+/**
+ * GET /api/auth/google/callback-info
+ * Public: shows the exact redirect_uri your server uses — paste this into Google Cloud Console.
+ */
+router.get('/google/callback-info', (req, res) => {
+  res.json({
+    success: true,
+    redirectUri: GOOGLE_OAUTH_CALLBACK_URL,
+    clientId: process.env.GOOGLE_CLIENT_ID || '',
+    instructions:
+      'Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client IDs → open the client whose Client ID matches "clientId" above (type must be Web application) → Authorized redirect URIs → Add URI → paste "redirectUri" exactly (no trailing slash, http not https for localhost).',
+  });
 });
 
 // Google OAuth start
@@ -156,6 +171,13 @@ router.get(
       if (!user._id) {
         console.error('❌ User object missing _id, cannot create token');
         return res.redirect(`${process.env.FRONTEND_URL}/login?error=invalid_user`);
+      }
+
+      if (user.accessStatus === 'restricted' || user.accessStatus === 'deleted') {
+        const frontend = (process.env.FRONTEND_URL || "http://localhost:3000").replace(/\/$/, "");
+        const statusLabel = user.accessStatus === 'deleted' ? 'blocked' : 'restricted';
+        const reason = encodeURIComponent(user.accessReason || 'No reason provided by admin.');
+        return res.redirect(`${frontend}/login?error=access_denied&message=${encodeURIComponent(`You have been ${statusLabel} by admin.`)}&reason=${reason}`);
       }
       
       console.log('✅ Existing user - proceeding with login:', user.email);

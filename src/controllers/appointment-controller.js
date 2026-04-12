@@ -399,6 +399,13 @@ export const updateAppointmentStatus = async (req, res) => {
       });
     }
 
+    if (isDoctor && status === 'completed' && appointment.paymentStatus !== 'paid') {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment must be completed (Khalti) before marking this appointment as completed.',
+      });
+    }
+
     // Update status
     appointment.status = status;
     await appointment.save();

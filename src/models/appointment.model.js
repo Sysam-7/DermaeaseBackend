@@ -16,6 +16,17 @@ const appointmentSchema = new Schema({
   start: { type: Date }, // For time range bookings
   end: { type: Date }, // For time range bookings
   meta: { type: Schema.Types.Mixed },
+  // Khalti ePayment (after doctor confirms; patient pays before doctor marks completed)
+  paymentStatus: {
+    type: String,
+    enum: ['unpaid', 'pending', 'paid'],
+    default: 'unpaid',
+  },
+  khaltiPidx: { type: String },
+  khaltiPurchaseOrderId: { type: String },
+  paymentAmountPaisa: { type: Number },
+  khaltiTransactionId: { type: String },
+  paidAt: { type: Date },
 }, { timestamps: true });
 
 // Indexes for better query performance

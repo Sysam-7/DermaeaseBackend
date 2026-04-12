@@ -147,6 +147,16 @@ export const login = async (req, res) => {
       });
     }
 
+    if (user.accessStatus === 'restricted' || user.accessStatus === 'deleted') {
+      const statusLabel = user.accessStatus === 'deleted' ? 'blocked' : 'restricted';
+      const reason = user.accessReason || 'No reason provided by admin.';
+      return res.status(403).json({
+        success: false,
+        message: `You have been ${statusLabel} by admin.`,
+        reason,
+      });
+    }
+
     const ok = await bcrypt.compare(password, user.password);
     if (!ok) {
       return res.status(401).json({ 
@@ -388,6 +398,15 @@ export const verifyGoogleOTP = async (req, res) => {
         verified: true, // Email verified via OTP
       });
     } else {
+      if (user.accessStatus === 'restricted' || user.accessStatus === 'deleted') {
+        const statusLabel = user.accessStatus === 'deleted' ? 'blocked' : 'restricted';
+        const reason = user.accessReason || 'No reason provided by admin.';
+        return res.status(403).json({
+          success: false,
+          message: `You have been ${statusLabel} by admin.`,
+          reason,
+        });
+      }
       // Link Google account to existing user
       if (!user.googleId) {
         user.googleId = otpRecord.googleId;
