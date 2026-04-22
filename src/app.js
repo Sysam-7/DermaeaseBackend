@@ -5,6 +5,7 @@ import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
 import session from "express-session";
+import path from 'path';
 import passport from "./config/passport.js";
 import authRoutes from "./routes/auth.routes.js";
 import doctorsRoutes from './routes/doctors.js';
@@ -16,6 +17,7 @@ import chatRoutes from './routes/chat.routes.js';
 import prescriptionsRoutes from './routes/prescriptions.routes.js';
 import reviewsRoutes from './routes/reviews.routes.js';
 import paymentsRoutes from './routes/payments.routes.js';
+import doctorApplicationsRoutes from './routes/doctor-applications.routes.js';
 
 const app = express();
 
@@ -47,6 +49,7 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 app.use(
   session({
@@ -83,6 +86,7 @@ app.use("/api/chat", chatRoutes);
 app.use("/api/prescriptions", prescriptionsRoutes);
 app.use("/api/reviews", reviewsRoutes);
 app.use("/api/payments", paymentsRoutes);
+app.use('/api/doctor-applications', doctorApplicationsRoutes);
 
 // Legacy OAuth routes (without /api prefix) for backward compatibility
 // This handles cases where Google Console is configured with /auth/google/callback

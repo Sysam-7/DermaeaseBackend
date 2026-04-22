@@ -7,8 +7,13 @@ export const listDoctors = async (req, res) => {
     const { q, specialty, location, availableDate, page = 1, limit = 20 } = req.query;
     const skip = Math.max(0, (parseInt(page, 10) - 1) * parseInt(limit, 10));
 
-    // Base filter - only doctors
-    const filter = { role: 'doctor' };
+    // Base filter - only doctors (exclude admin-removed accounts).
+    // Admin "removal" is a soft delete via accessStatus='deleted'.
+    const filter = {
+      role: 'doctor',
+      accessStatus: { $ne: 'deleted' },
+      doctorVerificationStatus: { $ne: 'pending' },
+    };
 
     if (q) {
       const regex = new RegExp(q, 'i');
@@ -57,7 +62,14 @@ export const getDoctor = async (req, res) => {
   try {
     const { id } = req.params;
     const doc = await User.findById(id).select('-password').lean();
-    if (!doc || doc.role !== 'doctor') return res.status(404).json({ message: 'Doctor not found' });
+    if (
+      !doc
+      || doc.role !== 'doctor'
+      || doc.accessStatus === 'deleted'
+      || doc.doctorVerificationStatus === 'pending'
+    ) {
+      return res.status(404).json({ message: 'Doctor not found' });
+    }
     // Include working hours in response
     res.json({ 
       data: {
@@ -74,7 +86,11 @@ export const getDoctor = async (req, res) => {
 
 export const listSpecialties = async (req, res) => {
   try {
-    const list = await User.distinct('specialty', { role: 'doctor' });
+    const list = await User.distinct('specialty', {
+      role: 'doctor',
+      accessStatus: { $ne: 'deleted' },
+      doctorVerificationStatus: { $ne: 'pending' },
+    });
     res.json({ data: list.filter(Boolean) });
   } catch (err) {
     console.error('listSpecialties error:', err);

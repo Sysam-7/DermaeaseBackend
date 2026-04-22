@@ -15,6 +15,12 @@ const userSchema = new Schema({
   rating: { type: Number },
   reviews: { type: Array, default: [] },
   verified: { type: Boolean, default: false },
+  doctorVerificationStatus: {
+    type: String,
+    enum: ['approved', 'pending', 'rejected'],
+    default: 'approved',
+  },
+  doctorLicenseNumber: { type: String },
   // Working hours for doctors (in 24-hour format, e.g., "07:00", "16:00")
   workingHoursStart: { type: String }, // e.g., "07:00"
   workingHoursEnd: { type: String }, // e.g., "16:00"
