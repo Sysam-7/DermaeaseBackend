@@ -13,6 +13,7 @@ import {
 import { updateWorkingHours } from '../controllers/doctors-controller.js';
 import { authenticate } from '../middleware/auth-middleware.js';
 import * as rolesMiddleware from '../middleware/roles-middleware.js';
+import { requireApprovedDoctor } from '../middleware/doctor-approval-middleware.js';
 
 // Resolve requireRole whether the module exports it as a named or default export
 const requireRole = rolesMiddleware.requireRole
@@ -46,18 +47,18 @@ router.get('/my', authenticate, getMyAppointments);
 router.post('/book', authenticate, bookAppointment);
 
 // GET /api/appointments/doctor (doctor's own appointments)
-router.get('/doctor', authenticate, requireRole('doctor'), getIncomingAppointments);
+router.get('/doctor', authenticate, requireRole('doctor'), requireApprovedDoctor, getIncomingAppointments);
 
 // POST /api/appointments/:id/approve
-router.post('/:id/approve', authenticate, requireRole('doctor'), approveAppointment);
+router.post('/:id/approve', authenticate, requireRole('doctor'), requireApprovedDoctor, approveAppointment);
 
 // POST /api/appointments/:id/reject
-router.post('/:id/reject', authenticate, requireRole('doctor'), rejectAppointment);
+router.post('/:id/reject', authenticate, requireRole('doctor'), requireApprovedDoctor, rejectAppointment);
 
 // GET /api/appointments/available-slots/:doctorId?date=YYYY-MM-DD
 router.get('/available-slots/:doctorId', getAvailableSlots);
 
 // PATCH /api/appointments/working-hours
-router.patch('/working-hours', authenticate, requireRole('doctor'), updateWorkingHours);
+router.patch('/working-hours', authenticate, requireRole('doctor'), requireApprovedDoctor, updateWorkingHours);
 
 export default router;
