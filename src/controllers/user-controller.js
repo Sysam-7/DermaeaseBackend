@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import User from '../models/user.model.js';
 
 export async function getMe(req, res) {
@@ -157,7 +159,7 @@ export async function getCurrentUser(req, res) {
 export async function updateCurrentUser(req, res) {
   try {
     const userId = req.user.id;
-    const { name, email, specialty, location, bio } = req.body;
+    const { name, email, specialty, location, bio, profilePic } = req.body;
 
     const updateData = {};
     if (name !== undefined) updateData.name = name;
@@ -165,6 +167,7 @@ export async function updateCurrentUser(req, res) {
     if (specialty !== undefined) updateData.specialty = specialty;
     if (location !== undefined) updateData.location = location;
     if (bio !== undefined) updateData.bio = bio;
+    if (profilePic !== undefined) updateData.profilePic = profilePic || null;
 
     const user = await User.findByIdAndUpdate(
       userId,
@@ -201,7 +204,47 @@ export async function updateCurrentUser(req, res) {
   }
 }
 
+/**
+ * POST /api/users/me/profile-image (multipart field: profileImage)
+ */
+export async function uploadProfileImage(req, res) {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No image file uploaded' });
+    }
+    const userId = req.user.id;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
 
+    const oldPic = user.profilePic;
+    const relativePath = `/uploads/profile-images/${req.file.filename}`;
+    user.profilePic = relativePath;
+    await user.save();
 
+    if (oldPic && typeof oldPic === 'string' && oldPic.startsWith('/uploads/profile-images/')) {
+      const rel = oldPic.replace(/^\//, '');
+      const oldAbs = path.join(process.cwd(), rel);
+      try {
+        if (fs.existsSync(oldAbs) && rel.includes('profile-images')) {
+          fs.unlinkSync(oldAbs);
+        }
+      } catch (_) {
+        /* ignore */
+      }
+    }
+
+    const updated = await User.findById(userId).select('-password').lean();
+    return res.json({
+      success: true,
+      message: 'Profile photo updated',
+      data: updated,
+    });
+  } catch (err) {
+    console.error('uploadProfileImage error:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+}
 
 
